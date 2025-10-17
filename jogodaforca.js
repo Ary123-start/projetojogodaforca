@@ -1,138 +1,278 @@
 const readline = require("readline");
 
 const rl = readline.createInterface({
-  input: process.stdin,
-  output: process.stdout,
+    input: process.stdin,
+    output: process.stdout,
 });
 
-// Palavras e dicas
 const palavras = [
-  { palavra: "COMPUTADOR", dica: "Máquina que usamos para programar" },
-  { palavra: "ELEFANTE", dica: "Um animal grande com tromba" },
-  { palavra: "GIRASSOL", dica: "Flor que segue o sol" },
-  { palavra: "CACHORRO", dica: "Melhor amigo do homem" },
-  { palavra: "LIVRO", dica: "Usado para ler" },
+    { palavra: "COMPUTADOR", dica: "Máquina que usamos para programar" },
+    { palavra: "ELEFANTE", dica: "Um animal grande com tromba" },
+    { palavra: "GIRASSOL", dica: "Flor que segue o sol" },
+    { palavra: "CACHORRO", dica: "Melhor amigo do homem" },
+    { palavra: "LIVRO", dica: "Usado para ler" },
 ];
 
-// Função para perguntar e obter resposta
+const palavraDesempate = {
+    palavra: "JAVASCRIPT",
+    dica: "Linguagem usada para criar este jogo 😄",
+};
+
+const boneco = [
+  `
+  
+  
+  
+  
+  =========`,
+  `
+      O
+         
+         
+         
+  =========`,
+  `
+      O
+      |
+      
+      
+  =========`,
+  `
+      O
+     /|
+      
+      
+  =========`,
+  `
+      O
+     /|\\
+      
+      
+  =========`,
+  `
+      O
+     /|\\
+     / 
+      
+  =========`,
+  `
+      O
+     /|\\
+     / \\
+      
+  =========`,
+];
+
+let erros = 0;
+const maxErros = boneco.length - 1;
+
+let grupo1, grupo2;
+let letrasCorretas = [];
+let letrasTentadas = [];
+
 function perguntar(query) {
-  return new Promise((resolve) => rl.question(query, resolve));
+    return new Promise((resolve) => rl.question(query, resolve));
 }
 
-(async function jogo() {
-  console.log("🎯 Bem-vindo ao Jogo da Forca (Node.js) — Melhor de 3!");
+function tempoPergunta(prompt, timeoutMs) {
+    return new Promise((resolve) => {
+        process.stdout.write(prompt);
+        let answered = false;
 
-  // Nomes dos grupos
-  const grupo1 = await perguntar("Digite o nome do Grupo 1: ");
-  const grupo2 = await perguntar("Digite o nome do Grupo 2: ");
+        const onLine = (input) => {
+            if (answered) return;
+            answered = true;
+            clearTimeout(timer);
+            resolve(input);
+        };
 
-  let placar = { [grupo1]: 0, [grupo2]: 0 };
 
-  let vezAtual = Math.random() < 0.5 ? grupo1 : grupo2;
-  console.log(`\nSorteio: quem começa é "${vezAtual}"\n`);
+        const onClose = () => {
+            if (answered) return;
+            answered = true;
+            clearTimeout(timer);
+            resolve(null);
+        };
 
-  // Melhor de 3
-  while (placar[grupo1] < 2 && placar[grupo2] < 2) {
-    const sorteio = palavras[Math.floor(Math.random() * palavras.length)];
-    const palavraSecreta = sorteio.palavra.toUpperCase();
-    const dica = sorteio.dica;
-    let letrasCorretas = [];
-    let letrasTentadas = [];
-    let restante = palavraSecreta.length;
+        rl.once("line", onLine);
+        rl.once("close", onClose);
+
+        const timer = setTimeout(() => {
+            if (answered) return;
+            answered = true;
+            rl.removeListener("line", onLine);
+            rl.removeListener("close", onClose);
+            resolve(null);
+        }, timeoutMs);
+    });
+}
+
+function exibir(placar, palavraSecreta, dica, erros, vezAtual) {
+    console.log("====================================");
+    console.log(`Grupos: 1) ${grupo1} (${placar[grupo1]})  —  2) ${grupo2} (${placar[grupo2]})`);
+    console.log(`Dica: ${dica}`);
+    console.log(boneco[erros]);
+    console.log(
+        "Palavra: " +
+        palavraSecreta
+            .split("")
+            .map((l) => (letrasCorretas.includes(l) ? l : "_"))
+            .join(" ")
+    );
+    console.log("Letras já tentadas: " + letrasTentadas.join(", "));
+    console.log(`Vez de: ${vezAtual}`);
+    console.log("====================================");
+}
+
+async function rodada(palavraObj, placar, vezInicial) {
+    let vezAtual = vezInicial;
+    const palavraSecreta = palavraObj.palavra.toUpperCase();
+    const dica = palavraObj.dica;
+
+    letrasCorretas = [];
+    letrasTentadas = [];
+    erros = 0;
 
     let rodadaFinalizada = false;
 
     while (!rodadaFinalizada) {
-      console.log("====================================");
-      console.log(`Grupos: 1) ${grupo1} (${placar[grupo1]})  —  2) ${grupo2} (${placar[grupo2]})`);
-      console.log(`Dica: ${dica}`);
-      console.log(
-        "Palavra: " +
-        palavraSecreta
-          .split("")
-          .map((l) => (letrasCorretas.includes(l) ? l : "_"))
-          .join(" ")
-      );
-      console.log("Letras já tentadas: " + letrasTentadas.join(", "));
-      console.log(`Vez de: ${vezAtual}`);
-      console.log("====================================");
+        exibir(placar, palavraSecreta, dica, erros, vezAtual);
 
-      let letraOuPalavra = await perguntar(`${vezAtual}, digite UMA letra ou tente a palavra completa: `);
-      letraOuPalavra = letraOuPalavra.toUpperCase();
+        let tentativa = await perguntar(`${vezAtual}, digite UMA letra ou tente a palavra completa: `);
+        tentativa = (tentativa || "").toUpperCase().trim();
 
-      // Se tentar adivinhar a palavra completa
-      if (letraOuPalavra.length > 1) {
-        if (letraOuPalavra === palavraSecreta) {
-          console.log(`🎉 O grupo "${vezAtual}" acertou a palavra! Vitória da rodada!`);
-          placar[vezAtual]++;
-          rodadaFinalizada = true;
+
+        if (tentativa.length > 1) {
+            if (tentativa === palavraSecreta) {
+                console.log(`🎉 ${vezAtual} acertou a palavra! Vitória da rodada!`);
+                placar[vezAtual]++;
+                rodadaFinalizada = true;
+                erros = 0;
+                break;
+            } else {
+                console.log("❌ Palavra incorreta! A vez passa para o outro grupo.");
+                erros++;
+                vezAtual = vezAtual === grupo1 ? grupo2 : grupo1;
+                if (erros >= maxErros) {
+                    console.log(boneco[erros]);
+                    console.log(`💀 A forca foi completada! A palavra era: ${palavraSecreta}`);
+                    rodadaFinalizada = true;
+                    erros = 0;
+                }
+                continue;
+            }
+        } else if (tentativa.length === 1) {
+    
+            if (letrasTentadas.includes(tentativa)) {
+                console.log("⚠ Letra já tentada, tente outra.");
+                continue;
+            }
+
+            letrasTentadas.push(tentativa);
+
+            if (palavraSecreta.includes(tentativa)) {
+                console.log(`✅ Parabéns! A letra "${tentativa}" está na palavra.`);
+                letrasCorretas.push(tentativa);
+            } else {
+                console.log(`❌ A letra "${tentativa}" NÃO está na palavra. Vez passa para o outro grupo.`);
+                erros++;
+                vezAtual = vezAtual === grupo1 ? grupo2 : grupo1;
+            }
         } else {
-          console.log("❌ Palavra incorreta! A vez passa para o outro grupo.");
-          vezAtual = vezAtual === grupo1 ? grupo2 : grupo1;
+    
+            console.log("⚠ Entrada vazia. Tente novamente.");
+            continue;
         }
-        continue;
-      }
 
-      // Se digitou uma letra
-      if (letrasTentadas.includes(letraOuPalavra)) {
-        console.log("⚠️ Letra já tentada, tente outra.");
-        continue;
-      }
 
-      letrasTentadas.push(letraOuPalavra);
-
-      if (palavraSecreta.includes(letraOuPalavra)) {
-        console.log(`✅ Parabéns! A letra "${letraOuPalavra}" está na palavra.`);
-        letrasCorretas.push(letraOuPalavra);
-      } else {
-        console.log(`❌ A letra "${letraOuPalavra}" NÃO está na palavra. Vez passa para o outro grupo.`);
-        vezAtual = vezAtual === grupo1 ? grupo2 : grupo1;
-      }
-
-      // Checar se faltam 3 letras
-      const letrasFaltando = palavraSecreta
-        .split("")
-        .filter((l) => !letrasCorretas.includes(l)).length;
-
-      if (letrasFaltando >= 3) {
-        console.log(`⚠️ Faltam 3 letras! ${vezAtual} tem 10 segundos para tentar a palavra completa!`);
-
-        let acertouNoTempo = false;
-
-        for (let i = 10; i > 0; i--) {
-          process.stdout.write(`Tempo restante: ${i}s\r`);
-          await new Promise((r) => setTimeout(r, 1000));
+        if (palavraSecreta.split("").every((l) => letrasCorretas.includes(l))) {
+            console.log(`🎉 O grupo "${vezAtual}" completou a palavra! Vitória da rodada!`);
+            placar[vezAtual]++;
+            rodadaFinalizada = true;
+            erros = 0;
+            break;
         }
-        console.log("");
 
-        let tentativa = await perguntar(`${vezAtual}, digite a palavra completa: `);
-        tentativa = tentativa.toUpperCase();
-        if (tentativa === palavraSecreta) {
-          console.log(`🎉 ${vezAtual} acertou a palavra! Vitória da rodada!`);
-          placar[vezAtual]++;
-          rodadaFinalizada = true;
-          acertouNoTempo = true;
-        } else {
-          console.log(`❌ Palavra incorreta! A vez passa para o outro grupo.`);
-          vezAtual = vezAtual === grupo1 ? grupo2 : grupo1;
+
+        const letrasFaltando = palavraSecreta
+            .split("")
+            .filter((l) => !letrasCorretas.includes(l)).length;
+
+        if (letrasFaltando <= 3 && !rodadaFinalizada) {
+            console.log(`⚠ Faltam ${letrasFaltando} letras! ${vezAtual} tem 10 segundos para tentar a palavra completa!`);
+
+            const chuteFinal = await tempoPergunta(`${vezAtual}, digite a palavra completa: `, 10000);
+
+            if (chuteFinal === null) {
+                console.log("\n⏰ Tempo esgotado!");
+                console.log("❌ Não respondeu a tempo! A vez passa para o outro grupo.");
+                erros++;
+                vezAtual = vezAtual === grupo1 ? grupo2 : grupo1;
+            } else {
+                const chute = chuteFinal.toUpperCase().trim();
+                if (chute === palavraSecreta) {
+                    console.log(`🎉 ${vezAtual} acertou a palavra! Vitória da rodada!`);
+                    placar[vezAtual]++;
+                    rodadaFinalizada = true;
+                    erros = 0;
+                    break;
+                } else {
+                    console.log("❌ Palavra incorreta! A vez passa para o outro grupo.");
+                    erros++;
+                    vezAtual = vezAtual === grupo1 ? grupo2 : grupo1;
+                }
+            }
+
+            if (erros >= maxErros && !rodadaFinalizada) {
+                console.log(boneco[erros]);
+                console.log(`💀 A forca foi completada! A palavra era: ${palavraSecreta}`);
+                rodadaFinalizada = true;
+                erros = 0;
+                break;
+            }
         }
-      }
 
-      // Checar se todas as letras foram acertadas
-      if (palavraSecreta.split("").every((l) => letrasCorretas.includes(l))) {
-        console.log(`🎉 O grupo "${vezAtual}" completou a palavra! Vitória da rodada!`);
-        placar[vezAtual]++;
-        rodadaFinalizada = true;
-      }
+
+        if (erros >= maxErros && !rodadaFinalizada) {
+            console.log(boneco[erros]);
+            console.log(`💀 A forca foi completada! A palavra era: ${palavraSecreta}`);
+            rodadaFinalizada = true;
+            erros = 0;
+            break;
+        }
     }
 
-    console.log(`PLACAR: ${grupo1} ${placar[grupo1]} x ${placar[grupo2]} ${grupo2}\n`);
-    await perguntar("Pressione Enter para a próxima rodada...");
-    console.clear();
-  }
+    return vezAtual;
+}
 
-  const vencedor = placar[grupo1] === 2 ? grupo1 : grupo2;
-  console.log(`🏆 FIM DE JOGO! O vencedor do melhor de 3 é: ${vencedor} 🎉`);
+(async function jogo() {
+    console.log("🎯 Bem-vindo ao Jogo da Forca (Node.js) — Melhor de 3!");
 
-  rl.close();
+    grupo1 = await perguntar("Digite o nome do Grupo 1: ");
+    grupo2 = await perguntar("Digite o nome do Grupo 2: ");
+
+    const placar = { [grupo1]: 0, [grupo2]: 0 };
+
+    let vezAtual = Math.random() < 0.5 ? grupo1 : grupo2;
+    console.log(`\nSorteio: quem começa é "${vezAtual}"\n`);
+
+    while (placar[grupo1] < 2 && placar[grupo2] < 2) {
+        const PalavraSorteada = palavras[Math.floor(Math.random() * palavras.length)];
+
+        vezAtual = await rodada(PalavraSorteada, placar, vezAtual);
+
+        console.log(`PLACAR: ${grupo1} ${placar[grupo1]} x ${placar[grupo2]} ${grupo2}\n`);
+        await perguntar("Pressione Enter para a próxima rodada...");
+        console.clear();
+    }
+
+    if (placar[grupo1] === placar[grupo2]) {
+        console.log("⚔️ EMPATE DETECTADO — Vamos para a rodada de DESEMPATE FINAL!");
+        await rodada(palavraDesempate, placar, vezAtual);
+    }
+
+    const vencedor = placar[grupo1] > placar[grupo2] ? grupo1 : grupo2;
+    console.log(`🏆 FIM DE JOGO! O vencedor é: ${vencedor} 🎉`);
+
+    rl.close();
 })();
