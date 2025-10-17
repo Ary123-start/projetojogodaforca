@@ -83,29 +83,44 @@ function tempoPergunta(prompt, timeoutMs) {
             if (answered) return;
             answered = true;
             clearTimeout(timer);
+            clearInterval(contador);
             resolve(input);
         };
-
 
         const onClose = () => {
             if (answered) return;
             answered = true;
             clearTimeout(timer);
+            clearInterval(contador);
             resolve(null);
         };
 
         rl.once("line", onLine);
         rl.once("close", onClose);
 
+        // 🕒 Contagem regressiva de 10 a 0
+        let tempoRestante = timeoutMs / 1000;
+        process.stdout.write(`\n⏳ Tempo: ${tempoRestante}s\n`);
+
+        const contador = setInterval(() => {
+            tempoRestante--;
+            if (tempoRestante > 0) {
+                process.stdout.write(`⏳ Tempo: ${tempoRestante}s\n`);
+            }
+        }, 1000);
+
+        // ⏰ Timer principal
         const timer = setTimeout(() => {
             if (answered) return;
             answered = true;
+            clearInterval(contador);
             rl.removeListener("line", onLine);
             rl.removeListener("close", onClose);
             resolve(null);
         }, timeoutMs);
     });
 }
+
 
 function exibir(placar, palavraSecreta, dica, erros, vezAtual) {
     console.log("====================================");
